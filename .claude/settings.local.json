@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start:*)",
+      "Read(//e/nvm/**)",
+      "Bash(nvm list:*)",
+      "Bash(git init:*)"
+    ]
+  }
+}
