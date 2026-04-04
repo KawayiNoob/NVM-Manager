@@ -1,53 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NVM Manager</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div class="container">
-    <header class="header">
-      <h1 class="title">NVM Manager</h1>
-      <div class="current-version" id="currentVersion">
-        <span class="label">当前版本</span>
-        <span class="version" id="currentVersionValue">加载中...</span>
-      </div>
-    </header>
-
-    <div class="tabs">
-      <button class="tab active" data-tab="installed">已安装</button>
-      <button class="tab" data-tab="available">可下载</button>
-    </div>
-
-    <div class="content">
-      <div class="tab-content active" id="installed">
-        <div class="version-list" id="installedList">
-          <div class="loading">加载中...</div>
-        </div>
-      </div>
-
-      <div class="tab-content" id="available">
-        <div class="version-list" id="availableList">
-          <div class="loading">加载中...</div>
-        </div>
-      </div>
-    </div>
-
-    <footer class="footer">
-      <button class="btn btn-refresh" id="refreshBtn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="23 4 23 10 17 10"></polyline>
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-        </svg>
-        刷新
-      </button>
-    </footer>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <script src="renderer.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NVM Manager</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
