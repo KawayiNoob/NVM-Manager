@@ -79,6 +79,14 @@
         }
       ],
       "sign": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "license": "LICENSE",
+      "deleteAppDataOnUninstall": false
     }
   }
 }

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { RefreshCw, Minus, Square, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { RefreshCw, Minus, Square, Copy, X, Download } from 'lucide-react';
 import { useElectron } from '@/hooks/useElectron';
 import { useToast } from '@/hooks/useToast';
 import { VersionItem } from '@/components/VersionItem';
@@ -10,6 +10,7 @@ type TabType = 'installed' | 'available';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('installed');
+  const [isMaximized, setIsMaximized] = useState(false);
   const {
     currentVersion,
     installedVersions,
@@ -22,8 +23,27 @@ function App() {
     minimizeWindow,
     maximizeWindow,
     closeWindow,
+    isMaximized: checkIsMaximized,
+    hasElectron,
+    openExternalUrl,
   } = useElectron();
   const { toasts, showToast } = useToast();
+
+  const updateMaximizedState = useCallback(async () => {
+    if (hasElectron) {
+      const maximized = await checkIsMaximized();
+      setIsMaximized(maximized);
+    }
+  }, [hasElectron, checkIsMaximized]);
+
+  const handleMaximize = useCallback(() => {
+    maximizeWindow();
+    setTimeout(updateMaximizedState, 100);
+  }, [maximizeWindow, updateMaximizedState]);
+
+  useEffect(() => {
+    updateMaximizedState();
+  }, [updateMaximizedState]);
 
   const handleUseVersion = async (version: string) => {
     showToast(`正在切换到 ${version}...`, 'info');
@@ -65,6 +85,10 @@ function App() {
     showToast('正在刷新...', 'info');
     await refreshAll();
     showToast('刷新完成', 'success');
+  };
+
+  const handleInstallNvm = () => {
+    openExternalUrl('https://github.com/coreybutler/nvm-windows');
   };
 
   return (
@@ -111,24 +135,24 @@ function App() {
         <div className="no-drag flex items-center gap-1">
           <button
             onClick={minimizeWindow}
-            className="w-8 h-8 flex items-center justify-center rounded transition-colors text-white border-none outline-none"
-            style={{ backgroundColor: '#1c2638' }}
+            className="w-8 h-8 flex items-center justify-center rounded transition-opacity text-white border-none outline-none hover:opacity-80"
+            style={{ backgroundColor: '#192336' }}
             title="最小化"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={maximizeWindow}
-            className="w-8 h-8 flex items-center justify-center rounded transition-colors text-white border-none outline-none"
-            style={{ backgroundColor: '#1c2638' }}
-            title="最大化"
+            onClick={handleMaximize}
+            className="w-8 h-8 flex items-center justify-center rounded transition-opacity text-white border-none outline-none hover:opacity-80"
+            style={{ backgroundColor: '#192336' }}
+            title={isMaximized ? "还原" : "最大化"}
           >
-            <Square className="w-3.5 h-3.5" />
+            {isMaximized ? <Copy className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={closeWindow}
-            className="w-8 h-8 flex items-center justify-center rounded transition-colors text-white border-none outline-none"
-            style={{ backgroundColor: '#1c2638' }}
+            className="w-8 h-8 flex items-center justify-center rounded transition-opacity text-white border-none outline-none hover:opacity-80"
+            style={{ backgroundColor: '#192336' }}
             title="关闭"
           >
             <X className="w-4 h-4" />
@@ -255,14 +279,26 @@ function App() {
               NVM {nvmInstalled ? '已安装' : '未安装'}
             </span>
           </div>
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 px-5 py-2.5 bg-white/8 text-slate-300 border border-white/12 hover:bg-white/12 hover:text-slate-100"
-            onClick={handleRefresh}
-          >
-            <RefreshCw className="w-4 h-4" />
-            刷新
-          </Button>
+          <div className="flex items-center gap-2">
+            {!nvmInstalled && (
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 px-4 py-2.5 bg-green-500/15 text-green-400 border border-green-500/40 hover:bg-green-500/25 hover:text-green-300"
+                onClick={handleInstallNvm}
+              >
+                <Download className="w-4 h-4" />
+                安装NVM
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/8 text-slate-300 border border-white/12 hover:bg-white/12 hover:text-slate-100"
+              onClick={handleRefresh}
+            >
+              <RefreshCw className="w-4 h-4" />
+              刷新
+            </Button>
+          </div>
         </footer>
       </div>
 

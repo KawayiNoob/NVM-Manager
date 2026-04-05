@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, globalShortcut, shell } = require('electron');
 const { exec, execSync } = require('child_process');
 const path = require('path');
 const os = require('os');
@@ -397,6 +397,13 @@ ipcMain.handle('window-close', () => {
   }
 });
 
+ipcMain.handle('window-is-maximized', () => {
+  if (mainWindow) {
+    return mainWindow.isMaximized();
+  }
+  return false;
+});
+
 ipcMain.handle('check-nvm-installed', checkNvmInstalled);
 
 ipcMain.handle('get-current-version', getCurrentVersion);
@@ -404,3 +411,6 @@ ipcMain.handle('get-installed-versions', getInstalledVersions);
 ipcMain.handle('get-available-versions', getAvailableVersions);
 ipcMain.handle('use-version', async (_event, version) => useVersion(version));
 ipcMain.handle('install-version', async (_event, version) => installVersion(version));
+ipcMain.handle('open-external-url', (_event, url) => {
+  shell.openExternal(url);
+});

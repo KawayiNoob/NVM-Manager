@@ -113,6 +113,19 @@ export const useElectron = () => {
     ipcRenderer.invoke('window-close');
   }, [ipcRenderer]);
 
+  const openExternalUrl = useCallback((url: string) => {
+    if (!ipcRenderer) {
+      window.open(url, '_blank');
+      return;
+    }
+    ipcRenderer.invoke('open-external-url', url);
+  }, [ipcRenderer]);
+
+  const isMaximized = useCallback(async () => {
+    if (!ipcRenderer) return false;
+    return ipcRenderer.invoke('window-is-maximized') as Promise<boolean>;
+  }, [ipcRenderer]);
+
   const checkNvmInstalled = useCallback(async () => {
     if (!ipcRenderer) return;
     setLoading((prev) => ({ ...prev, nvm: true }));
@@ -169,6 +182,8 @@ export const useElectron = () => {
     minimizeWindow,
     maximizeWindow,
     closeWindow,
+    openExternalUrl,
+    isMaximized,
     hasElectron: !!ipcRenderer,
   };
 };
