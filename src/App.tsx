@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Minus, Square, X } from 'lucide-react';
 import { useElectron } from '@/hooks/useElectron';
 import { useToast } from '@/hooks/useToast';
 import { VersionItem } from '@/components/VersionItem';
@@ -14,10 +14,14 @@ function App() {
     currentVersion,
     installedVersions,
     availableVersions,
+    nvmInstalled,
     loading,
     useVersion,
     installVersion,
     refreshAll,
+    minimizeWindow,
+    maximizeWindow,
+    closeWindow,
   } = useElectron();
   const { toasts, showToast } = useToast();
 
@@ -92,10 +96,49 @@ function App() {
           overflow: hidden;
           height: 100%;
         }
+        /* 可拖拽区域 */
+        .drag-region {
+          -webkit-app-region: drag;
+        }
+        .no-drag {
+          -webkit-app-region: no-drag;
+        }
       `}</style>
-      <div className="flex flex-col h-full p-5">
+
+      {/* 自定义标题栏 */}
+      <div className="drag-region h-10 flex items-center justify-between px-3 select-none">
+        <div className="flex-1" />
+        <div className="no-drag flex items-center gap-1">
+          <button
+            onClick={minimizeWindow}
+            className="w-8 h-8 flex items-center justify-center rounded transition-colors text-white border-none outline-none"
+            style={{ backgroundColor: '#1c2638' }}
+            title="最小化"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={maximizeWindow}
+            className="w-8 h-8 flex items-center justify-center rounded transition-colors text-white border-none outline-none"
+            style={{ backgroundColor: '#1c2638' }}
+            title="最大化"
+          >
+            <Square className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={closeWindow}
+            className="w-8 h-8 flex items-center justify-center rounded transition-colors text-white border-none outline-none"
+            style={{ backgroundColor: '#1c2638' }}
+            title="关闭"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col flex-1 px-5 pb-5">
         {/* Header */}
-        <header className="flex justify-between items-center mb-6">
+        <header className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             NVM Manager
           </h1>
@@ -203,7 +246,15 @@ function App() {
         </div>
 
         {/* Footer */}
-        <footer className="flex justify-center pt-4">
+        <footer className="flex justify-between items-center pt-4">
+          <div className="flex items-center gap-2 text-xs">
+            <div
+              className={`w-2 h-2 rounded-full ${nvmInstalled ? 'bg-green-400' : 'bg-red-400'}`}
+            />
+            <span className={nvmInstalled ? 'text-green-400' : 'text-red-400'}>
+              NVM {nvmInstalled ? '已安装' : '未安装'}
+            </span>
+          </div>
           <Button
             variant="outline"
             className="flex items-center gap-2 px-5 py-2.5 bg-white/8 text-slate-300 border border-white/12 hover:bg-white/12 hover:text-slate-100"

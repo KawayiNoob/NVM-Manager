@@ -4,7 +4,7 @@ import UnoCSS from 'unocss/vite'
 import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     UnoCSS(),
@@ -21,5 +21,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    sourcemap: command === 'serve',
   },
-})
+}))

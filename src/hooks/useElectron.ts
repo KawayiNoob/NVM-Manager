@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 
 // 类型声明
+interface IpcRenderer {
+  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+}
+
 interface ElectronAPI {
-  ipcRenderer: {
-    invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  };
+  ipcRenderer: IpcRenderer;
 }
 
 declare global {
@@ -15,10 +17,11 @@ declare global {
 }
 
 // 获取 ipcRenderer
-const getIpcRenderer = () => {
+const getIpcRenderer = (): IpcRenderer | null => {
   if (typeof window !== 'undefined' && window.require) {
     try {
-      return window.require('electron').ipcRenderer;
+      const electron = window.require('electron') as ElectronAPI;
+      return electron.ipcRenderer;
     } catch {
       return null;
     }
@@ -30,10 +33,12 @@ export const useElectron = () => {
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [installedVersions, setInstalledVersions] = useState<string[]>([]);
   const [availableVersions, setAvailableVersions] = useState<string[]>([]);
+  const [nvmInstalled, setNvmInstalled] = useState<boolean>(false);
   const [loading, setLoading] = useState({
     current: false,
     installed: false,
     available: false,
+    nvm: false,
   });
 
   const ipcRenderer = getIpcRenderer();
@@ -93,6 +98,35 @@ export const useElectron = () => {
     [ipcRenderer]
   );
 
+  const minimizeWindow = useCallback(() => {
+    if (!ipcRenderer) return;
+    ipcRenderer.invoke('window-minimize');
+  }, [ipcRenderer]);
+
+  const maximizeWindow = useCallback(() => {
+    if (!ipcRenderer) return;
+    ipcRenderer.invoke('window-maximize');
+  }, [ipcRenderer]);
+
+  const closeWindow = useCallback(() => {
+    if (!ipcRenderer) return;
+    ipcRenderer.invoke('window-close');
+  }, [ipcRenderer]);
+
+  const checkNvmInstalled = useCallback(async () => {
+    if (!ipcRenderer) return;
+    setLoading((prev) => ({ ...prev, nvm: true }));
+    try {
+      const installed = await ipcRenderer.invoke('check-nvm-installed');
+      setNvmInstalled(installed as boolean);
+    } catch (error) {
+      console.error('Failed to check nvm installed:', error);
+      setNvmInstalled(false);
+    } finally {
+      setLoading((prev) => ({ ...prev, nvm: false }));
+    }
+  }, [ipcRenderer]);
+
   const refreshAll = useCallback(async () => {
     await Promise.all([
       fetchCurrentVersion(),
@@ -103,12 +137,27 @@ export const useElectron = () => {
 
   useEffect(() => {
     refreshAll();
-  }, [refreshAll]);
+    if (ipcRenderer) {
+      (async () => {
+        setLoading((prev) => ({ ...prev, nvm: true }));
+        try {
+          const installed = await ipcRenderer.invoke('check-nvm-installed');
+          setNvmInstalled(installed as boolean);
+        } catch (error) {
+          console.error('Failed to check nvm installed:', error);
+          setNvmInstalled(false);
+        } finally {
+          setLoading((prev) => ({ ...prev, nvm: false }));
+        }
+      })();
+    }
+  }, [refreshAll, ipcRenderer]);
 
   return {
     currentVersion,
     installedVersions,
     availableVersions,
+    nvmInstalled,
     loading,
     fetchCurrentVersion,
     fetchInstalledVersions,
@@ -116,6 +165,10 @@ export const useElectron = () => {
     useVersion,
     installVersion,
     refreshAll,
+    checkNvmInstalled,
+    minimizeWindow,
+    maximizeWindow,
+    closeWindow,
     hasElectron: !!ipcRenderer,
   };
 };

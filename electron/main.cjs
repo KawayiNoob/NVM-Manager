@@ -8,15 +8,18 @@ const https = require('https');
 let mainWindow;
 
 function createWindow() {
+  const isDev = process.argv.includes('--dev');
   mainWindow = new BrowserWindow({
     width: 520,
     height: 680,
-    frame: true,
+    frame: false,
     resizable: true,
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      devTools: isDev,
     },
     backgroundColor: '#0f172a',
   });
@@ -25,10 +28,8 @@ function createWindow() {
   Menu.setApplicationMenu(null);
 
   // 在开发模式下加载 Vite 开发服务器，生产模式下加载构建文件
-  const isDev = process.argv.includes('--dev');
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
@@ -57,6 +58,23 @@ function findNvmRoot() {
   }
 
   return null;
+}
+
+function checkNvmInstalled() {
+  return new Promise((resolve) => {
+    // 首先尝试通过命令检测
+    try {
+      execSync('nvm version', { shell: true, stdio: 'ignore' });
+      resolve(true);
+      return;
+    } catch {
+      // 命令失败，继续检查目录
+    }
+
+    // 检查 nvm 目录是否存在
+    const nvmRoot = findNvmRoot();
+    resolve(nvmRoot !== null && fs.existsSync(nvmRoot));
+  });
 }
 
 function getCurrentVersion() {
@@ -295,43 +313,48 @@ function installVersion(version) {
 app.whenReady().then(() => {
   createWindow();
 
-  // 注册开发工具快捷键
-  globalShortcut.register('F12', () => {
-    if (mainWindow) {
-      mainWindow.webContents.toggleDevTools();
-    }
-  });
+  const isDev = process.argv.includes('--dev');
 
-  globalShortcut.register('Ctrl+Shift+I', () => {
-    if (mainWindow) {
-      mainWindow.webContents.toggleDevTools();
-    }
-  });
+  // 只有开发环境才注册开发工具和刷新快捷键
+  if (isDev) {
+    // 注册开发工具快捷键
+    globalShortcut.register('F12', () => {
+      if (mainWindow) {
+        mainWindow.webContents.toggleDevTools();
+      }
+    });
 
-  globalShortcut.register('Cmd+Option+I', () => {
-    if (mainWindow) {
-      mainWindow.webContents.toggleDevTools();
-    }
-  });
+    globalShortcut.register('Ctrl+Shift+I', () => {
+      if (mainWindow) {
+        mainWindow.webContents.toggleDevTools();
+      }
+    });
 
-  // 注册刷新快捷键
-  globalShortcut.register('F5', () => {
-    if (mainWindow) {
-      mainWindow.webContents.reload();
-    }
-  });
+    globalShortcut.register('Cmd+Option+I', () => {
+      if (mainWindow) {
+        mainWindow.webContents.toggleDevTools();
+      }
+    });
 
-  globalShortcut.register('Ctrl+R', () => {
-    if (mainWindow) {
-      mainWindow.webContents.reload();
-    }
-  });
+    // 注册刷新快捷键
+    globalShortcut.register('F5', () => {
+      if (mainWindow) {
+        mainWindow.webContents.reload();
+      }
+    });
 
-  globalShortcut.register('Cmd+R', () => {
-    if (mainWindow) {
-      mainWindow.webContents.reload();
-    }
-  });
+    globalShortcut.register('Ctrl+R', () => {
+      if (mainWindow) {
+        mainWindow.webContents.reload();
+      }
+    });
+
+    globalShortcut.register('Cmd+R', () => {
+      if (mainWindow) {
+        mainWindow.webContents.reload();
+      }
+    });
+  }
 });
 
 app.on('will-quit', () => {
@@ -350,6 +373,31 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// 窗口控制
+ipcMain.handle('window-minimize', () => {
+  if (mainWindow) {
+    mainWindow.minimize();
+  }
+});
+
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+
+ipcMain.handle('window-close', () => {
+  if (mainWindow) {
+    mainWindow.close();
+  }
+});
+
+ipcMain.handle('check-nvm-installed', checkNvmInstalled);
 
 ipcMain.handle('get-current-version', getCurrentVersion);
 ipcMain.handle('get-installed-versions', getInstalledVersions);

@@ -68,6 +68,17 @@
     "files": [
       "dist/**/*",
       "electron/**/*"
-    ]
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "sign": null
+    }
   }
 }
