@@ -11,3 +11,11 @@ export interface VersionItemProps {
   onUse?: (version: string) => void;
   onInstall?: (version: string) => void;
 }
+
+export interface NvmSettings {
+  node_mirror?: string;
+  npm_mirror?: string;
+  root?: string;
+  path?: string;
+  nodejs?: string;
+}

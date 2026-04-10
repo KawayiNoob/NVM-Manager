@@ -62,18 +62,23 @@ function findNvmRoot() {
 
 function checkNvmInstalled() {
   return new Promise((resolve) => {
-    // 首先尝试通过命令检测
+    // 首先检查 nvm 目录是否存在（避免命令阻塞）
+    const nvmRoot = findNvmRoot();
+    if (nvmRoot !== null && fs.existsSync(nvmRoot)) {
+      resolve(true);
+      return;
+    }
+
+    // 备选方案：尝试通过命令检测
     try {
-      execSync('nvm version', { shell: true, stdio: 'ignore' });
+      execSync('nvm version', { shell: true, stdio: 'ignore', timeout: 2000 });
       resolve(true);
       return;
     } catch {
-      // 命令失败，继续检查目录
+      // 命令也失败
     }
 
-    // 检查 nvm 目录是否存在
-    const nvmRoot = findNvmRoot();
-    resolve(nvmRoot !== null && fs.existsSync(nvmRoot));
+    resolve(false);
   });
 }
 
@@ -90,9 +95,45 @@ function getCurrentVersion() {
 
 function getInstalledVersions() {
   return new Promise((resolve) => {
-    // 首先尝试使用 nvm ls 命令获取已安装版本（更准确）
+    // 首先使用目录扫描（避免命令阻塞）
+    const nvmRoot = findNvmRoot();
+    console.log('Scanning nvm root:', nvmRoot);
+
+    if (nvmRoot && fs.existsSync(nvmRoot)) {
+      try {
+        const items = fs.readdirSync(nvmRoot);
+        const versions = [];
+        console.log('Items in nvm root:', items);
+
+        for (const item of items) {
+          const fullPath = path.join(nvmRoot, item);
+          if (fs.statSync(fullPath).isDirectory()) {
+            const match = item.match(/^v?(\d+\.\d+\.\d+)$/);
+            if (match) {
+              versions.push(item.startsWith('v') ? item : 'v' + item);
+            }
+          }
+        }
+
+        if (versions.length > 0) {
+          versions.sort((a, b) => {
+            const pa = a.replace('v', '').split('.').map(Number);
+            const pb = b.replace('v', '').split('.').map(Number);
+            return pb[0] - pa[0] || pb[1] - pa[1] || pb[2] - pa[2];
+          });
+
+          console.log('Found versions via directory scan:', versions);
+          resolve(versions);
+          return;
+        }
+      } catch (e) {
+        console.log('Directory scan failed, falling back to nvm ls:', e.message);
+      }
+    }
+
+    // 备选方案：尝试使用 nvm ls 命令
     try {
-      const output = execSync('nvm ls', { shell: true, encoding: 'utf8' });
+      const output = execSync('nvm ls', { shell: true, encoding: 'utf8', timeout: 3000 });
       const versions = [];
       const lines = output.split('\n');
 
@@ -118,45 +159,10 @@ function getInstalledVersions() {
         return;
       }
     } catch (e) {
-      console.log('nvm ls failed, falling back to directory scan:', e.message);
+      console.log('nvm ls also failed:', e.message);
     }
 
-    // 备用方案：扫描 nvm 目录
-    const nvmRoot = findNvmRoot();
-    console.log('Scanning nvm root:', nvmRoot);
-
-    if (!nvmRoot || !fs.existsSync(nvmRoot)) {
-      resolve([]);
-      return;
-    }
-
-    try {
-      const items = fs.readdirSync(nvmRoot);
-      const versions = [];
-      console.log('Items in nvm root:', items);
-
-      for (const item of items) {
-        const fullPath = path.join(nvmRoot, item);
-        if (fs.statSync(fullPath).isDirectory()) {
-          const match = item.match(/^v?(\d+\.\d+\.\d+)$/);
-          if (match) {
-            versions.push(item.startsWith('v') ? item : 'v' + item);
-          }
-        }
-      }
-
-      versions.sort((a, b) => {
-        const pa = a.replace('v', '').split('.').map(Number);
-        const pb = b.replace('v', '').split('.').map(Number);
-        return pb[0] - pa[0] || pb[1] - pa[1] || pb[2] - pa[2];
-      });
-
-      console.log('Found versions via directory scan:', versions);
-      resolve(versions);
-    } catch (e) {
-      console.error('Error reading installed versions:', e);
-      resolve([]);
-    }
+    resolve([]);
   });
 }
 
@@ -258,7 +264,7 @@ function installVersion(version) {
 
     // 首先尝试检测 nvm 是否可用
     try {
-      execSync('nvm version', { shell: true, stdio: 'ignore' });
+      execSync('nvm version', { shell: true, stdio: 'ignore', timeout: 2000 });
     } catch (e) {
       // nvm 不可用，回退到提示模式
       resolve(`Please run "nvm install ${cleanVersion}" in terminal.`);
@@ -413,4 +419,95 @@ ipcMain.handle('use-version', async (_event, version) => useVersion(version));
 ipcMain.handle('install-version', async (_event, version) => installVersion(version));
 ipcMain.handle('open-external-url', (_event, url) => {
   shell.openExternal(url);
+});
+
+// 读取 nvm settings
+ipcMain.handle('get-nvm-settings', () => {
+  return new Promise((resolve) => {
+    try {
+      const nvmRoot = findNvmRoot();
+      if (!nvmRoot) {
+        resolve({});
+        return;
+      }
+
+      const settingsPath = path.join(nvmRoot, 'settings.txt');
+      if (!fs.existsSync(settingsPath)) {
+        resolve({});
+        return;
+      }
+
+      const content = fs.readFileSync(settingsPath, 'utf8');
+      const settings = {};
+
+      // 解析 key: value 格式
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.includes(':')) continue;
+
+        const colonIndex = trimmed.indexOf(':');
+        const key = trimmed.substring(0, colonIndex).trim();
+        const value = trimmed.substring(colonIndex + 1).trim();
+
+        if (key) {
+          settings[key] = value;
+        }
+      }
+
+      console.log('Loaded nvm settings:', settings);
+      resolve(settings);
+    } catch (e) {
+      console.error('Failed to load nvm settings:', e);
+      resolve({});
+    }
+  });
+});
+
+// 保存 nvm settings
+ipcMain.handle('set-nvm-settings', (_event, newSettings) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const nvmRoot = findNvmRoot();
+      if (!nvmRoot) {
+        reject(new Error('NVM root not found'));
+        return;
+      }
+
+      const settingsPath = path.join(nvmRoot, 'settings.txt');
+      let content = '';
+
+      // 如果文件存在，先读取现有内容
+      if (fs.existsSync(settingsPath)) {
+        content = fs.readFileSync(settingsPath, 'utf8');
+      }
+
+      // 更新或添加配置项
+      for (const [key, value] of Object.entries(newSettings)) {
+        if (value === undefined || value === null) continue;
+
+        const regex = new RegExp(`^${key}:.*$`, 'gm');
+        const newLine = `${key}: ${value}`;
+
+        if (regex.test(content)) {
+          // 替换已存在的配置
+          content = content.replace(regex, newLine);
+        } else {
+          // 添加新配置
+          if (content && !content.endsWith('\n')) {
+            content += '\n';
+          }
+          content += `${newLine}\n`;
+        }
+      }
+
+      // 写回文件
+      fs.writeFileSync(settingsPath, content, 'utf8');
+      console.log('Saved nvm settings:', newSettings);
+      resolve(true);
+    } catch (e) {
+      console.error('Failed to save nvm settings:', e);
+      reject(e);
+    }
+  });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { NvmSettings } from '@/types';
 
 // 类型声明
 interface IpcRenderer {
@@ -34,11 +35,13 @@ export const useElectron = () => {
   const [installedVersions, setInstalledVersions] = useState<string[]>([]);
   const [availableVersions, setAvailableVersions] = useState<string[]>([]);
   const [nvmInstalled, setNvmInstalled] = useState<boolean>(false);
+  const [nvmSettings, setNvmSettings] = useState<NvmSettings>({});
   const [loading, setLoading] = useState({
     current: false,
     installed: false,
     available: false,
     nvm: false,
+    settings: false,
   });
 
   const ipcRenderer = getIpcRenderer();
@@ -140,6 +143,35 @@ export const useElectron = () => {
     }
   }, [ipcRenderer]);
 
+  const fetchNvmSettings = useCallback(async () => {
+    if (!ipcRenderer) return;
+    setLoading((prev) => ({ ...prev, settings: true }));
+    try {
+      const settings = await ipcRenderer.invoke('get-nvm-settings');
+      setNvmSettings(settings as NvmSettings);
+    } catch (error) {
+      console.error('Failed to fetch nvm settings:', error);
+      setNvmSettings({});
+    } finally {
+      setLoading((prev) => ({ ...prev, settings: false }));
+    }
+  }, [ipcRenderer]);
+
+  const saveNvmSettings = useCallback(
+    async (settings: NvmSettings) => {
+      if (!ipcRenderer) return false;
+      try {
+        await ipcRenderer.invoke('set-nvm-settings', settings);
+        setNvmSettings((prev) => ({ ...prev, ...settings }));
+        return true;
+      } catch (error) {
+        console.error('Failed to save nvm settings:', error);
+        return false;
+      }
+    },
+    [ipcRenderer]
+  );
+
   const refreshAll = useCallback(async () => {
     await Promise.all([
       fetchCurrentVersion(),
@@ -171,6 +203,7 @@ export const useElectron = () => {
     installedVersions,
     availableVersions,
     nvmInstalled,
+    nvmSettings,
     loading,
     fetchCurrentVersion,
     fetchInstalledVersions,
@@ -179,6 +212,8 @@ export const useElectron = () => {
     installVersion,
     refreshAll,
     checkNvmInstalled,
+    fetchNvmSettings,
+    saveNvmSettings,
     minimizeWindow,
     maximizeWindow,
     closeWindow,

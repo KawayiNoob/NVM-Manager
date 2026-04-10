@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Minus, Square, Copy, X, Download } from 'lucide-react';
+import { RefreshCw, Minus, Square, Copy, X, Download, Settings } from 'lucide-react';
 import { useElectron } from '@/hooks/useElectron';
 import { useToast } from '@/hooks/useToast';
 import { VersionItem } from '@/components/VersionItem';
 import { Toast } from '@/components/Toast';
+import { Dialog } from '@/components/Dialog';
 import { Button } from '@/components/ui/button';
 
 type TabType = 'installed' | 'available';
@@ -11,11 +12,15 @@ type TabType = 'installed' | 'available';
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('installed');
   const [isMaximized, setIsMaximized] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tempNodeMirror, setTempNodeMirror] = useState('');
+  const [tempNpmMirror, setTempNpmMirror] = useState('');
   const {
     currentVersion,
     installedVersions,
     availableVersions,
     nvmInstalled,
+    nvmSettings,
     loading,
     useVersion,
     installVersion,
@@ -26,6 +31,8 @@ function App() {
     isMaximized: checkIsMaximized,
     hasElectron,
     openExternalUrl,
+    fetchNvmSettings,
+    saveNvmSettings,
   } = useElectron();
   const { toasts, showToast } = useToast();
 
@@ -90,6 +97,26 @@ function App() {
   const handleInstallNvm = () => {
     openExternalUrl('https://github.com/coreybutler/nvm-windows');
   };
+
+  const handleOpenSettings = useCallback(async () => {
+    await fetchNvmSettings();
+    setTempNodeMirror(nvmSettings.node_mirror || '');
+    setTempNpmMirror(nvmSettings.npm_mirror || '');
+    setSettingsOpen(true);
+  }, [fetchNvmSettings, nvmSettings]);
+
+  const handleSaveSettings = useCallback(async () => {
+    const success = await saveNvmSettings({
+      node_mirror: tempNodeMirror || undefined,
+      npm_mirror: tempNpmMirror || undefined,
+    });
+    if (success) {
+      showToast('设置已保存', 'success');
+      setSettingsOpen(false);
+    } else {
+      showToast('保存失败', 'error');
+    }
+  }, [saveNvmSettings, tempNodeMirror, tempNpmMirror, showToast]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-800 text-slate-200 flex flex-col">
@@ -160,9 +187,9 @@ function App() {
         </div>
       </div>
 
-      <div className="flex flex-col flex-1 px-5 pb-5">
+      <div className="flex flex-col flex-1 px-5 pt-0">
         {/* Header */}
-        <header className="flex justify-between items-center mb-4">
+        <header className="flex justify-between items-center mb-4 pt-5">
           <h1 className="text-2xl font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             NVM Manager
           </h1>
@@ -209,25 +236,27 @@ function App() {
               }`}
             >
               <div className="h-full overflow-y-auto p-3 custom-scrollbar">
-                {loading.installed ? (
-                  <div className="text-center py-10 text-slate-500">加载中...</div>
-                ) : installedVersions.length === 0 ? (
-                  <div className="text-center py-10 text-slate-500">暂无已安装版本</div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {installedVersions.map((version) => (
-                      <VersionItem
-                        key={version}
-                        version={version}
-                        isCurrent={
-                          version === currentVersion || version === currentVersion.replace('v', '')
-                        }
-                        isInstalled={true}
-                        onUse={handleUseVersion}
-                      />
-                    ))}
-                  </div>
-                )}
+                <div className="pb-4">
+                  {loading.installed ? (
+                    <div className="text-center py-10 text-slate-500">加载中...</div>
+                  ) : installedVersions.length === 0 ? (
+                    <div className="text-center py-10 text-slate-500">暂无已安装版本</div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {installedVersions.map((version) => (
+                        <VersionItem
+                          key={version}
+                          version={version}
+                          isCurrent={
+                            version === currentVersion || version === currentVersion.replace('v', '')
+                          }
+                          isInstalled={true}
+                          onUse={handleUseVersion}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -238,39 +267,41 @@ function App() {
               }`}
             >
               <div className="h-full overflow-y-auto p-3 custom-scrollbar">
-                {loading.available ? (
-                  <div className="text-center py-10 text-slate-500">加载中...</div>
-                ) : availableVersions.length === 0 ? (
-                  <div className="text-center py-10 text-slate-500">
-                    <p className="mb-2">无法获取版本列表</p>
-                    <p className="text-xs text-slate-600">请检查网络连接后点击刷新</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {availableVersions.map((version) => (
-                      <VersionItem
-                        key={version}
-                        version={version}
-                        isCurrent={
-                          version === currentVersion || version === currentVersion.replace('v', '')
-                        }
-                        isInstalled={
-                          installedVersions.includes(version) ||
-                          installedVersions.includes(version.replace('v', ''))
-                        }
-                        onUse={handleUseVersion}
-                        onInstall={handleInstallVersion}
-                      />
-                    ))}
-                  </div>
-                )}
+                <div className="pb-4">
+                  {loading.available ? (
+                    <div className="text-center py-10 text-slate-500">加载中...</div>
+                  ) : availableVersions.length === 0 ? (
+                    <div className="text-center py-10 text-slate-500">
+                      <p className="mb-2">无法获取版本列表</p>
+                      <p className="text-xs text-slate-600">请检查网络连接后点击刷新</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {availableVersions.map((version) => (
+                        <VersionItem
+                          key={version}
+                          version={version}
+                          isCurrent={
+                            version === currentVersion || version === currentVersion.replace('v', '')
+                          }
+                          isInstalled={
+                            installedVersions.includes(version) ||
+                            installedVersions.includes(version.replace('v', ''))
+                          }
+                          onUse={handleUseVersion}
+                          onInstall={handleInstallVersion}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <footer className="flex justify-between items-center pt-4">
+        <footer className="flex justify-between items-center py-4 mt-4">
           <div className="flex items-center gap-2 text-xs">
             <div
               className={`w-2 h-2 rounded-full ${nvmInstalled ? 'bg-green-400' : 'bg-red-400'}`}
@@ -290,6 +321,20 @@ function App() {
                 安装NVM
               </Button>
             )}
+            {/* 设置按钮 */}
+            <div className="relative group">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 px-3 py-2.5 bg-white/8 text-slate-300 border border-white/12 hover:bg-white/12 hover:text-slate-100"
+                onClick={handleOpenSettings}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-700 text-slate-200 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                设置
+              </div>
+            </div>
             <Button
               variant="outline"
               className="flex items-center gap-2 px-5 py-2.5 bg-white/8 text-slate-300 border border-white/12 hover:bg-white/12 hover:text-slate-100"
@@ -303,6 +348,82 @@ function App() {
       </div>
 
       <Toast toasts={toasts} />
+
+      {/* 设置对话框 */}
+      <Dialog
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        title="设置"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="bg-white/8 text-slate-300 border-white/12 hover:bg-white/12"
+              onClick={() => setSettingsOpen(false)}
+            >
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveSettings}
+            >
+              保存
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Node.js 镜像地址
+            </label>
+            <input
+              type="text"
+              value={tempNodeMirror}
+              onChange={(e) => setTempNodeMirror(e.target.value)}
+              placeholder="https://nodejs.org/dist/"
+              className="w-full box-border px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 text-sm break-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              npm 镜像地址
+            </label>
+            <input
+              type="text"
+              value={tempNpmMirror}
+              onChange={(e) => setTempNpmMirror(e.target.value)}
+              placeholder="https://registry.npmmirror.com"
+              className="w-full box-border px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 text-sm break-all"
+            />
+          </div>
+          <div className="pt-2">
+            <p className="text-xs text-slate-500 mb-2">常用镜像：</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTempNodeMirror('https://npmmirror.com/mirrors/node/');
+                  setTempNpmMirror('https://registry.npmmirror.com');
+                }}
+                className="px-3 py-1.5 text-xs bg-blue-500/15 text-blue-400 border border-blue-500/40 rounded hover:bg-blue-500/25 transition-colors"
+              >
+                淘宝镜像
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTempNodeMirror('https://nodejs.org/dist/');
+                  setTempNpmMirror('https://registry.npmjs.org');
+                }}
+                className="px-3 py-1.5 text-xs bg-slate-500/15 text-slate-400 border border-slate-500/40 rounded hover:bg-slate-500/25 transition-colors"
+              >
+                官方源
+              </button>
+            </div>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
