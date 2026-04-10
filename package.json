@@ -1,6 +1,6 @@
 {
   "name": "nvm-ui",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "A lightweight nvm desktop manager",
   "type": "module",
   "scripts": {
@@ -78,7 +78,8 @@
           ]
         }
       ],
-      "sign": null
+      "sign": null,
+      "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
       "oneClick": false,
@@ -86,7 +87,12 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "license": "LICENSE",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "allowElevation": true,
+      "packElevateHelper": true,
+      "runAfterFinish": true,
+      "shortcutName": "NVM Manager",
+      "artifactName": "NVM-Manager-Setup-${version}.exe"
     }
   }
 }

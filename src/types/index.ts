@@ -2,6 +2,10 @@ export interface ToastMessage {
   id: string;
   message: string;
   type: 'info' | 'success' | 'error';
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 export interface VersionItemProps {
@@ -10,6 +14,7 @@ export interface VersionItemProps {
   isInstalled?: boolean;
   onUse?: (version: string) => void;
   onInstall?: (version: string) => void;
+  onUninstall?: (version: string) => void;
 }
 
 export interface NvmSettings {

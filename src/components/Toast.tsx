@@ -10,7 +10,7 @@ export const Toast: React.FC<ToastProps> = ({ toasts }) => {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`px-6 py-3 rounded-lg border text-sm transition-all duration-300 ${
+          className={`px-4 py-3 rounded-lg border text-sm transition-all duration-300 flex items-center gap-3 ${
             toast.type === 'success'
               ? 'bg-green-500/20 border-green-500/40 text-slate-200'
               : toast.type === 'error'
@@ -18,7 +18,15 @@ export const Toast: React.FC<ToastProps> = ({ toasts }) => {
                 : 'bg-slate-800/95 border-white/10 text-slate-200'
           }`}
         >
-          {toast.message}
+          <span className="flex-1 whitespace-pre-line">{toast.message}</span>
+          {toast.action && (
+            <button
+              onClick={toast.action.onClick}
+              className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/40 rounded hover:bg-blue-500/30 transition-colors"
+            >
+              {toast.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

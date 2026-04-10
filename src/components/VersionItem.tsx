@@ -7,6 +7,7 @@ export const VersionItem: React.FC<VersionItemProps> = ({
   isInstalled = false,
   onUse,
   onInstall,
+  onUninstall,
 }) => {
   return (
     <div className={`version-item ${isCurrent ? 'version-item-current' : ''}`}>
@@ -26,6 +27,11 @@ export const VersionItem: React.FC<VersionItemProps> = ({
         {isInstalled && !isCurrent && onUse && (
           <Button variant="primary" size="sm" onClick={() => onUse(version)}>
             使用
+          </Button>
+        )}
+        {isInstalled && !isCurrent && onUninstall && (
+          <Button variant="destructive" size="sm" onClick={() => onUninstall(version)}>
+            卸载
           </Button>
         )}
       </div>

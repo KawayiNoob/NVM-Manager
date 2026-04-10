@@ -24,6 +24,7 @@ function App() {
     loading,
     useVersion,
     installVersion,
+    uninstallVersion,
     refreshAll,
     minimizeWindow,
     maximizeWindow,
@@ -31,6 +32,7 @@ function App() {
     isMaximized: checkIsMaximized,
     hasElectron,
     openExternalUrl,
+    copyToClipboard,
     fetchNvmSettings,
     saveNvmSettings,
   } = useElectron();
@@ -67,12 +69,30 @@ function App() {
     showToast(`正在下载并安装 ${version}，这可能需要几分钟...`, 'info');
     try {
       const message = await installVersion(version);
-      // 如果返回的是提示信息，显示 info 级别
-      if (message.includes('Please run') || message.includes('terminal')) {
-        showToast(message, 'info');
+
+      // 检查消息中是否包含命令
+      const cmdMatch = message.match(/nvm install [^\s]+/);
+      if (cmdMatch) {
+        // 如果包含命令，显示一个带复制按钮的 toast
+        const cmd = cmdMatch[0];
+        showToast(
+          message,
+          'info',
+          {
+            label: '复制命令',
+            onClick: async () => {
+              const success = await copyToClipboard(cmd);
+              if (success) {
+                showToast('命令已复制到剪贴板', 'success');
+              }
+            }
+          }
+        );
       } else {
+        // 普通成功消息
         showToast(message, 'success');
       }
+
       // 等待一下让 nvm 完成安装，然后刷新
       setTimeout(async () => {
         await refreshAll();
@@ -85,6 +105,43 @@ function App() {
       } else {
         showToast(`安装失败: ${errorMsg}`, 'error');
       }
+    }
+  };
+
+  const handleUninstallVersion = async (version: string) => {
+    showToast(`正在卸载 ${version}...`, 'info');
+    try {
+      const message = await uninstallVersion(version);
+
+      // 检查消息中是否包含命令
+      const cmdMatch = message.match(/nvm uninstall [^\s]+/);
+      if (cmdMatch) {
+        // 如果包含命令，显示一个带复制按钮的 toast
+        const cmd = cmdMatch[0];
+        showToast(
+          message,
+          'info',
+          {
+            label: '复制命令',
+            onClick: async () => {
+              const success = await copyToClipboard(cmd);
+              if (success) {
+                showToast('命令已复制到剪贴板', 'success');
+              }
+            }
+          }
+        );
+      } else {
+        // 普通成功消息
+        showToast(message, 'success');
+      }
+
+      // 等待一下让 nvm 完成卸载，然后刷新
+      setTimeout(async () => {
+        await refreshAll();
+      }, 500);
+    } catch (error) {
+      showToast(`卸载失败: ${(error as Error).message}`, 'error');
     }
   };
 
@@ -252,6 +309,7 @@ function App() {
                           }
                           isInstalled={true}
                           onUse={handleUseVersion}
+                          onUninstall={handleUninstallVersion}
                         />
                       ))}
                     </div>
@@ -290,6 +348,7 @@ function App() {
                           }
                           onUse={handleUseVersion}
                           onInstall={handleInstallVersion}
+                          onUninstall={handleUninstallVersion}
                         />
                       ))}
                     </div>

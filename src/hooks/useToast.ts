@@ -4,13 +4,17 @@ import type { ToastMessage } from '@/types';
 export const useToast = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastMessage['type'] = 'info') => {
+  const showToast = useCallback((
+    message: string,
+    type: ToastMessage['type'] = 'info',
+    action?: ToastMessage['action']
+  ) => {
     const id = Date.now().toString();
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, action }]);
 
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, 5000);
   }, []);
 
   const hideToast = useCallback((id: string) => {

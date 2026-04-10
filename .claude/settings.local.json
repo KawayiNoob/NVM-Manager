@@ -18,7 +18,8 @@
       "Bash(pnpm add:*)",
       "Bash(pnpm dev:*)",
       "Bash(git add:*)",
-      "Bash(pnpm electron:build)"
+      "Bash(pnpm electron:build)",
+      "Bash(npm run:*)"
     ]
   }
 }

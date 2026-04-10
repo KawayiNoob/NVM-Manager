@@ -101,6 +101,14 @@ export const useElectron = () => {
     [ipcRenderer]
   );
 
+  const uninstallVersion = useCallback(
+    async (version: string) => {
+      if (!ipcRenderer) return '';
+      return ipcRenderer.invoke('uninstall-version', version) as Promise<string>;
+    },
+    [ipcRenderer]
+  );
+
   const minimizeWindow = useCallback(() => {
     if (!ipcRenderer) return;
     ipcRenderer.invoke('window-minimize');
@@ -122,6 +130,18 @@ export const useElectron = () => {
       return;
     }
     ipcRenderer.invoke('open-external-url', url);
+  }, [ipcRenderer]);
+
+  const copyToClipboard = useCallback(async (text: string) => {
+    if (!ipcRenderer) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return ipcRenderer.invoke('copy-to-clipboard', text) as Promise<boolean>;
   }, [ipcRenderer]);
 
   const isMaximized = useCallback(async () => {
@@ -210,6 +230,7 @@ export const useElectron = () => {
     fetchAvailableVersions,
     useVersion,
     installVersion,
+    uninstallVersion,
     refreshAll,
     checkNvmInstalled,
     fetchNvmSettings,
@@ -218,6 +239,7 @@ export const useElectron = () => {
     maximizeWindow,
     closeWindow,
     openExternalUrl,
+    copyToClipboard,
     isMaximized,
     hasElectron: !!ipcRenderer,
   };

@@ -253,66 +253,212 @@ function useVersion(version) {
       }
       resolve(`Switched to ${version}. Please restart terminal/IDE.`);
     } catch (e) {
-      reject(e);
+      // 增强错误提示
+      if (e.code === 'EPERM') {
+        reject(new Error('权限不足！请以管理员身份运行此应用。\n\n原因：修改 NVM 配置需要管理员权限。\n\n解决方法：右键点击应用图标，选择"以管理员身份运行"。'));
+      } else {
+        reject(e);
+      }
     }
   });
 }
 
+function getNodeMirror() {
+  return new Promise((resolve) => {
+    try {
+      const nvmRoot = findNvmRoot();
+      if (nvmRoot) {
+        const settingsPath = path.join(nvmRoot, 'settings.txt');
+        if (fs.existsSync(settingsPath)) {
+          const content = fs.readFileSync(settingsPath, 'utf8');
+          const match = content.match(/node_mirror:\s*(.+)/);
+          if (match) {
+            let mirror = match[1].trim();
+            if (!mirror.endsWith('/')) {
+              mirror += '/';
+            }
+            resolve(mirror);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.log('Failed to read node_mirror:', e);
+    }
+    resolve('https://nodejs.org/dist/');
+  });
+}
+
+function downloadFile(url, destPath) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(destPath);
+
+    const protocol = url.startsWith('https') ? https : require('http');
+
+    protocol.get(url, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        // 处理重定向
+        downloadFile(response.headers.location, destPath).then(resolve).catch(reject);
+        return;
+      }
+
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download: ${response.statusCode}`));
+        return;
+      }
+
+      response.pipe(file);
+
+      file.on('finish', () => {
+        file.close();
+        resolve();
+      });
+    }).on('error', (err) => {
+      fs.unlink(destPath, () => {});
+      reject(err);
+    });
+  });
+}
+
+function extractZip(zipPath, destDir) {
+  return new Promise((resolve, reject) => {
+    // 使用 PowerShell 解压
+    const powershellCmd = `powershell.exe -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force"`;
+
+    exec(powershellCmd, { shell: true, timeout: 300000 }, (error, stdout, stderr) => {
+      if (error) {
+        // 如果 PowerShell 解压失败，尝试使用 tar（Windows 10 17063+ 自带）
+        const tarCmd = `tar -xf "${zipPath}" -C "${destDir}"`;
+        exec(tarCmd, { shell: true, timeout: 300000 }, (tarError, tarStdout, tarStderr) => {
+          if (tarError) {
+            reject(new Error(`Failed to extract: ${error.message} || ${tarError.message}`));
+          } else {
+            resolve();
+          }
+        });
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 function installVersion(version) {
+  return new Promise(async (resolve, reject) => {
+    const cleanVersion = version.replace('v', '');
+    const versionWithV = version.startsWith('v') ? version : 'v' + version;
+
+    try {
+      const nvmRoot = findNvmRoot();
+      if (!nvmRoot) {
+        resolve(`请在终端中运行: nvm install ${cleanVersion}`);
+        return;
+      }
+
+      // 检查目标目录是否已存在
+      const targetDir = path.join(nvmRoot, versionWithV);
+      if (fs.existsSync(targetDir)) {
+        resolve(`Version ${versionWithV} is already installed.`);
+        return;
+      }
+
+      // 创建临时目录
+      const tempDir = path.join(nvmRoot, 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // 获取下载镜像
+      const nodeMirror = await getNodeMirror();
+      console.log('Using mirror:', nodeMirror);
+
+      // 构造下载 URL
+      const zipFileName = `node-v${cleanVersion}-win-x64.zip`;
+      const downloadUrl = `${nodeMirror}v${cleanVersion}/${zipFileName}`;
+      const zipPath = path.join(tempDir, zipFileName);
+
+      console.log('Downloading from:', downloadUrl);
+      console.log('Saving to:', zipPath);
+
+      // 下载文件
+      resolve(`Downloading Node.js ${versionWithV}...`);
+
+      await downloadFile(downloadUrl, zipPath);
+
+      console.log('Download complete, extracting...');
+
+      // 创建目标目录
+      fs.mkdirSync(targetDir, { recursive: true });
+
+      // 解压文件
+      await extractZip(zipPath, targetDir);
+
+      // 检查解压后的内容，可能需要把内容从子目录移出来
+      const extractedDirs = fs.readdirSync(targetDir);
+      if (extractedDirs.length === 1) {
+        const subDir = path.join(targetDir, extractedDirs[0]);
+        if (fs.statSync(subDir).isDirectory()) {
+          // 把内容从子目录移出来
+          const subFiles = fs.readdirSync(subDir);
+          for (const file of subFiles) {
+            fs.renameSync(path.join(subDir, file), path.join(targetDir, file));
+          }
+          // 删除空的子目录
+          fs.rmdirSync(subDir);
+        }
+      }
+
+      // 清理临时文件
+      try {
+        fs.unlinkSync(zipPath);
+      } catch (e) {
+        console.log('Failed to delete temp zip:', e);
+      }
+
+      console.log('Installation complete!');
+      resolve(`Node.js ${versionWithV} installed successfully!`);
+
+    } catch (error) {
+      console.log('Manual installation failed:', error);
+
+      // 如果手动安装失败，回退到提示用户使用终端
+      resolve(`请在终端中运行: nvm install ${cleanVersion}`);
+    }
+  });
+}
+
+function uninstallVersion(version) {
   return new Promise((resolve, reject) => {
     const cleanVersion = version.replace('v', '');
+    const versionWithV = version.startsWith('v') ? version : 'v' + version;
 
-    // 首先尝试检测 nvm 是否可用
     try {
-      execSync('nvm version', { shell: true, stdio: 'ignore', timeout: 2000 });
-    } catch (e) {
-      // nvm 不可用，回退到提示模式
-      resolve(`Please run "nvm install ${cleanVersion}" in terminal.`);
-      return;
+      const nvmRoot = findNvmRoot();
+      if (!nvmRoot) {
+        resolve(`请在终端中运行: nvm uninstall ${cleanVersion}`);
+        return;
+      }
+
+      // 检查目标目录是否存在
+      const targetDir = path.join(nvmRoot, versionWithV);
+      if (!fs.existsSync(targetDir)) {
+        resolve(`Version ${versionWithV} is not installed.`);
+        return;
+      }
+
+      // 删除版本目录
+      console.log('Uninstalling version:', versionWithV);
+      fs.rmSync(targetDir, { recursive: true, force: true });
+
+      console.log('Uninstallation complete!');
+      resolve(`Node.js ${versionWithV} uninstalled successfully!`);
+
+    } catch (error) {
+      console.log('Manual uninstallation failed:', error);
+
+      // 如果手动卸载失败，回退到提示用户使用终端
+      resolve(`请在终端中运行: nvm uninstall ${cleanVersion}`);
     }
-
-    // Windows 下需要使用 shell 来执行 nvm
-    const options = {
-      shell: true,
-      env: { ...process.env }
-    };
-
-    console.log(`Executing: nvm install ${cleanVersion}`);
-
-    exec(`nvm install ${cleanVersion}`, options, (error, stdout, stderr) => {
-      console.log('stdout:', stdout);
-      console.log('stderr:', stderr);
-
-      // 即使有 error 码，也可能是成功的（nvm 有时返回非零退出码但实际成功）
-      const output = (stdout || stderr || '').trim();
-
-      // 检查输出中是否有成功的标志
-      if (output && (
-        output.toLowerCase().includes('complete') ||
-        output.toLowerCase().includes('installed') ||
-        output.toLowerCase().includes('using') ||
-        output.includes(cleanVersion)
-      )) {
-        resolve(output);
-        return;
-      }
-
-      // 如果有明显的错误信息
-      if (error && output) {
-        // 如果错误信息包含权限问题或其他问题，回退到提示
-        if (output.toLowerCase().includes('access') ||
-            output.toLowerCase().includes('permission') ||
-            output.toLowerCase().includes('denied')) {
-          resolve(`Please run "nvm install ${cleanVersion}" in terminal.`);
-          return;
-        }
-        reject(new Error(output));
-        return;
-      }
-
-      // 默认回退到提示模式
-      resolve(`Please run "nvm install ${cleanVersion}" in terminal.`);
-    });
   });
 }
 
@@ -417,8 +563,15 @@ ipcMain.handle('get-installed-versions', getInstalledVersions);
 ipcMain.handle('get-available-versions', getAvailableVersions);
 ipcMain.handle('use-version', async (_event, version) => useVersion(version));
 ipcMain.handle('install-version', async (_event, version) => installVersion(version));
+ipcMain.handle('uninstall-version', async (_event, version) => uninstallVersion(version));
 ipcMain.handle('open-external-url', (_event, url) => {
   shell.openExternal(url);
+});
+
+ipcMain.handle('copy-to-clipboard', (_event, text) => {
+  const { clipboard } = require('electron');
+  clipboard.writeText(text);
+  return true;
 });
 
 // 读取 nvm settings
@@ -507,7 +660,12 @@ ipcMain.handle('set-nvm-settings', (_event, newSettings) => {
       resolve(true);
     } catch (e) {
       console.error('Failed to save nvm settings:', e);
-      reject(e);
+      // 增强错误提示
+      if (e.code === 'EPERM') {
+        reject(new Error('权限不足！请以管理员身份运行此应用。\n\n原因：修改 NVM 配置需要管理员权限。\n\n解决方法：右键点击应用图标，选择"以管理员身份运行"。'));
+      } else {
+        reject(e);
+      }
     }
   });
 });
