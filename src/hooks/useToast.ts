@@ -15,15 +15,26 @@ export const useToast = () => {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
+    return id;
   }, []);
 
   const hideToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const clearToasts = useCallback(() => {
+    setToasts([]);
+  }, []);
+
+  const clearToastsByMessage = useCallback((messages: string[]) => {
+    setToasts((prev) => prev.filter((t) => !messages.includes(t.message)));
+  }, []);
+
   return {
     toasts,
     showToast,
     hideToast,
+    clearToasts,
+    clearToastsByMessage,
   };
 };

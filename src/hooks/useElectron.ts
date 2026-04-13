@@ -34,6 +34,7 @@ export const useElectron = () => {
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [installedVersions, setInstalledVersions] = useState<string[]>([]);
   const [availableVersions, setAvailableVersions] = useState<string[]>([]);
+  const [availableVersionsError, setAvailableVersionsError] = useState<string | null>(null);
   const [nvmInstalled, setNvmInstalled] = useState<boolean>(false);
   const [nvmSettings, setNvmSettings] = useState<NvmSettings>({});
   const [loading, setLoading] = useState({
@@ -43,6 +44,7 @@ export const useElectron = () => {
     nvm: false,
     settings: false,
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const ipcRenderer = getIpcRenderer();
 
@@ -75,11 +77,21 @@ export const useElectron = () => {
   const fetchAvailableVersions = useCallback(async () => {
     if (!ipcRenderer) return;
     setLoading((prev) => ({ ...prev, available: true }));
+    setAvailableVersionsError(null);
     try {
-      const versions = await ipcRenderer.invoke('get-available-versions');
-      setAvailableVersions(versions as string[]);
+      const result = await ipcRenderer.invoke('get-available-versions');
+      const { success, versions, error } = result as { success: boolean; versions: string[]; error?: string };
+      if (success) {
+        setAvailableVersions(versions);
+        setAvailableVersionsError(null);
+      } else {
+        setAvailableVersions([]);
+        setAvailableVersionsError(error || '获取版本列表失败');
+      }
     } catch (error) {
       console.error('Failed to get available versions:', error);
+      setAvailableVersions([]);
+      setAvailableVersionsError('获取版本列表时发生错误');
     } finally {
       setLoading((prev) => ({ ...prev, available: false }));
     }
@@ -193,11 +205,16 @@ export const useElectron = () => {
   );
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([
-      fetchCurrentVersion(),
-      fetchInstalledVersions(),
-      fetchAvailableVersions(),
-    ]);
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        fetchCurrentVersion(),
+        fetchInstalledVersions(),
+        fetchAvailableVersions(),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [fetchCurrentVersion, fetchInstalledVersions, fetchAvailableVersions]);
 
   useEffect(() => {
@@ -222,9 +239,11 @@ export const useElectron = () => {
     currentVersion,
     installedVersions,
     availableVersions,
+    availableVersionsError,
     nvmInstalled,
     nvmSettings,
     loading,
+    isRefreshing,
     fetchCurrentVersion,
     fetchInstalledVersions,
     fetchAvailableVersions,

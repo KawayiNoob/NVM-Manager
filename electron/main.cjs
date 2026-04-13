@@ -182,29 +182,29 @@ function getAvailableVersions() {
             .filter((r) => {
               // 过滤 rc 和 nightly 版本
               if (r.version.includes('rc') || r.version.includes('nightly')) return false;
-              // 只保留 v24 及以下的版本（避免太新的版本）
+              // 只保留 v0.10 及以上的版本（避免太老的版本）
               const majorMatch = r.version.match(/^v?(\d+)/);
               if (majorMatch) {
                 const major = parseInt(majorMatch[1], 10);
-                return major <= 24;
+                return major >= 0; // 保留所有主要版本
               }
               return false;
             })
-            .map((r) => r.version)
-            .slice(0, 100);
+            .map((r) => r.version);
+          // 不限制数量，显示所有可用版本
 
           if (versions.length > 0) {
-            resolve(versions);
+            resolve({ success: true, versions });
             return;
           }
         } catch (e) {
           console.error('Failed to parse Node.js versions:', e);
         }
-        resolve([]);
+        resolve({ success: false, error: '解析版本数据失败', versions: [] });
       });
     }).on('error', (e) => {
       console.error('Failed to fetch Node.js versions:', e);
-      resolve([]);
+      resolve({ success: false, error: '网络连接失败，请检查网络后重试', versions: [] });
     });
   });
 }
@@ -381,8 +381,6 @@ function installVersion(version) {
       console.log('Saving to:', zipPath);
 
       // 下载文件
-      resolve(`Downloading Node.js ${versionWithV}...`);
-
       await downloadFile(downloadUrl, zipPath);
 
       console.log('Download complete, extracting...');
