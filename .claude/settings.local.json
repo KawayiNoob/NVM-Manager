@@ -22,7 +22,8 @@
       "Bash(npm run:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm electron:dev)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(pnpm build:*)"
     ]
   }
 }
