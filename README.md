@@ -1,6 +1,7 @@
 # NVM Manager
 
 一个轻量级的 nvm 桌面管理应用，使用 Electron + React + TypeScript + Vite 构建。
+vibe conding含量极高
 
 ## 功能特性
 
