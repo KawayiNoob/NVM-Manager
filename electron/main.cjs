@@ -433,29 +433,64 @@ function uninstallVersion(version) {
     try {
       const nvmRoot = findNvmRoot();
       if (!nvmRoot) {
+        console.log('NVM root not found');
         resolve(`请在终端中运行: nvm uninstall ${cleanVersion}`);
         return;
       }
 
       // 检查目标目录是否存在
       const targetDir = path.join(nvmRoot, versionWithV);
+      console.log('Attempting to uninstall:', versionWithV);
+      console.log('Target directory:', targetDir);
+
       if (!fs.existsSync(targetDir)) {
+        console.log('Version directory does not exist:', targetDir);
         resolve(`Version ${versionWithV} is not installed.`);
         return;
       }
 
+      // 验证这确实是一个 Node.js 版本目录（防止误删）
+      let isValidNodeDir = false;
+      try {
+        const items = fs.readdirSync(targetDir);
+        // 检查是否有 node.exe 或其他 Node.js 标志性文件
+        isValidNodeDir = items.includes('node.exe') || items.includes('npm.cmd') || items.includes('node_modules');
+      } catch (e) {
+        console.log('Failed to verify directory contents:', e);
+      }
+
+      if (!isValidNodeDir) {
+        console.log('Directory does not appear to be a valid Node.js installation:', targetDir);
+        reject(new Error(`目录 ${targetDir} 似乎不是有效的 Node.js 安装目录`));
+        return;
+      }
+
       // 删除版本目录
-      console.log('Uninstalling version:', versionWithV);
+      console.log('Deleting directory:', targetDir);
       fs.rmSync(targetDir, { recursive: true, force: true });
 
-      console.log('Uninstallation complete!');
+      // 验证删除是否成功
+      if (fs.existsSync(targetDir)) {
+        console.log('Failed to delete directory (still exists):', targetDir);
+        reject(new Error(`无法删除目录 ${targetDir}，请关闭可能正在使用该目录的程序后重试`));
+        return;
+      }
+
+      console.log('Uninstallation complete!', versionWithV);
       resolve(`Node.js ${versionWithV} uninstalled successfully!`);
 
     } catch (error) {
-      console.log('Manual uninstallation failed:', error);
+      console.log('Uninstallation failed:', error);
 
-      // 如果手动卸载失败，回退到提示用户使用终端
-      resolve(`请在终端中运行: nvm uninstall ${cleanVersion}`);
+      // 检查错误类型
+      if (error.code === 'EPERM') {
+        reject(new Error('权限不足！请以管理员身份运行此应用。\n\n原因：删除 Node.js 目录需要管理员权限。\n\n解决方法：右键点击应用图标，选择"以管理员身份运行"。'));
+      } else if (error.code === 'EBUSY') {
+        reject(new Error('目录正在被使用！\n\n原因：该 Node.js 版本可能正在被其他程序使用。\n\n解决方法：请关闭所有正在运行的 Node.js 应用程序、终端窗口和开发工具，然后重试。'));
+      } else {
+        // 对于其他错误，仍然提示用户使用终端命令作为备选
+        resolve(`请在终端中运行: nvm uninstall ${cleanVersion}`);
+      }
     }
   });
 }

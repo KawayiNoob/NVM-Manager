@@ -26,9 +26,10 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
           <h2 className="text-lg font-semibold text-slate-200">{title}</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-300 ease-out hover:scale-110"
+            title="关闭"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 transition-transform duration-300 ease-out" />
           </button>
         </div>
 

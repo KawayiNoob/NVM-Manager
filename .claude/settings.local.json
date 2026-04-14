@@ -20,7 +20,9 @@
       "Bash(git add:*)",
       "Bash(pnpm electron:build)",
       "Bash(npm run:*)",
-      "Bash(pnpm lint:*)"
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm electron:dev)",
+      "Bash(git checkout:*)"
     ]
   }
 }
