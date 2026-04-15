@@ -11,6 +11,7 @@ import { TitleBar } from '@/components/layout/TitleBar';
 import { Header } from '@/components/layout/Header';
 import { VersionTabs } from '@/components/layout/VersionTabs';
 import { Footer } from '@/components/layout/Footer';
+import { BackToTop } from '@/components/layout/BackToTop';
 import { InstalledVersionsTab } from '@/components/versions/InstalledVersionsTab';
 import { AvailableVersionsTab } from '@/components/versions/AvailableVersionsTab';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
@@ -70,7 +71,7 @@ function App() {
     saveNvmSettings,
   });
 
-  const versionSearch = useVersionSearch(availableVersions);
+  const versionSearch = useVersionSearch(availableVersions, installedVersions);
 
   const handleRefresh = useCallback(() => {
     versionActions.handleRefresh(isRefreshing);
@@ -105,8 +106,11 @@ function App() {
             >
               <InstalledVersionsTab
                 installedVersions={installedVersions}
+                filteredVersions={versionSearch.filteredInstalledVersions}
                 currentVersion={currentVersion}
                 loading={loading.installed}
+                searchQuery={versionSearch.installedSearchQuery}
+                onSearchChange={versionSearch.setInstalledSearchQuery}
                 onUse={versionActions.handleUseVersion}
                 onUninstall={versionActions.handleUninstallVersion}
               />
@@ -172,6 +176,8 @@ function App() {
         getActionText={versionActions.getActionText}
         onConfirm={versionActions.handleConfirmAction}
       />
+
+      <BackToTop activeTab={activeTab} />
     </div>
   );
 }

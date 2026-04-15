@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **NVM Manager (nvm-ui)** - A lightweight nvm desktop manager built with Electron + React + TypeScript + Vite.
 
-- Version: 1.3.2
+- Version: 1.4.2
 - License: MIT
 - **Package Manager**: pnpm >= 8.0.0 (REQUIRED - enforced by package.json)
 
