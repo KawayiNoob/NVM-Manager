@@ -2,19 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(npm start:*)",
-      "Read(//e/nvm/**)",
       "Bash(nvm list:*)",
       "Bash(git init:*)",
       "Bash(tasklist)",
-      "Bash(powershell -Command \"Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue; if \\(Test-Path node_modules\\) { Write-Host 'node_modules still exists, trying another approach' } else { Write-Host 'node_modules deleted successfully' }\")",
       "Bash(pnpm --version)",
       "Bash(pnpm install:*)",
-      "Bash(powershell -Command \"Start-Sleep -Seconds 3; Remove-Item -Path 'node_modules\\\\electron' -Recurse -Force -ErrorAction SilentlyContinue; if \\(!\\(Test-Path 'node_modules\\\\electron'\\)\\) { Write-Host 'electron directory deleted' } else { Write-Host 'electron directory still exists' }\")",
-      "Bash(powershell -Command \"cd 'e:\\\\AlphaBeat\\\\nvm-ui'; if \\(Test-Path node_modules\\) { Rename-Item -Path node_modules -NewName node_modules.old -Force; Write-Host 'Renamed to node_modules.old' } else { Write-Host 'node_modules does not exist' }\")",
-      "Bash(powershell -Command \"Start-Process powershell -Verb RunAs -ArgumentList '-Command', 'cd ''e:\\\\AlphaBeat\\\\nvm-ui''; Remove-Item -Path node_modules -Recurse -Force -ErrorAction SilentlyContinue; Write-Host ''Done''' -Wait\")",
       "Bash([ -d \"node_modules\" ])",
       "Bash(mkdir -p backup)",
-      "Bash(mv main.js renderer.js index.html style.css backup/)",
       "Bash(pnpm add:*)",
       "Bash(pnpm dev:*)",
       "Bash(git add:*)",
@@ -23,7 +17,8 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm electron:dev)",
       "Bash(git checkout:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(git remote:*)"
     ]
   }
 }
